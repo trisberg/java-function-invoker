@@ -2,7 +2,7 @@
 apiVersion: projectriff.io/v1alpha1
 kind: Invoker
 metadata:
-  name: java-mvn
+  name: java-gradle
 spec:
   version: 0.0.8-snapshot
   matchers:
@@ -16,12 +16,14 @@ spec:
   files:
   - path: Dockerfile
     template: |
-      FROM maven:3.5-jdk-8-alpine as build
-      ADD pom.xml ./pom.xml
-      ADD src ./src
-      RUN mvn package -DskipTests
+      FROM keeganwitt/docker-gradle-root:4.6.0-jdk8-alpine as build
+      COPY ./*.* /home/gradle/fun/
+      COPY ./src /home/gradle/fun/src
+      WORKDIR /home/gradle/fun
+      ENV GRADLE_USER_HOME=~/.gradle
+      RUN gradle build --no-daemon -x test
       FROM projectriff/java-function-invoker:0.0.7
       ARG FUNCTION_JAR=/functions/function.jar
       ARG FUNCTION_HANDLER={{.Handler}}
-      COPY --from=build target/*.jar $FUNCTION_JAR
+      COPY --from=build home/gradle/fun/build/libs/*.jar $FUNCTION_JAR
       ENV FUNCTION_URI file://${FUNCTION_JAR}?handler=${FUNCTION_HANDLER}
