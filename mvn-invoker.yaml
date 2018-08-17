@@ -1,0 +1,27 @@
+---
+apiVersion: projectriff.io/v1alpha1
+kind: Invoker
+metadata:
+  name: java
+spec:
+  version: 0.0.8-maven
+  matchers:
+  - "pom.xml"
+  handler:
+    default: "functions.{{ .TitleCase .FunctionName }}"
+    description: the fully qualified class name or bean name of the function handler
+  functionTemplate:
+    spec:
+      protocol: http
+  files:
+  - path: Dockerfile
+    template: |
+      FROM maven:3.5-jdk-8-alpine as build
+      ADD pom.xml ./pom.xml
+      ADD src ./src
+      RUN mvn package -DskipTests
+      FROM projectriff/java-function-invoker:0.0.7
+      ARG FUNCTION_JAR=/functions/{{.ArtifactBase}}
+      ARG FUNCTION_HANDLER={{.Handler}}
+      COPY --from=build /target/{{.Artifact}} $FUNCTION_JAR
+      ENV FUNCTION_URI file://${FUNCTION_JAR}?handler=${FUNCTION_HANDLER}
